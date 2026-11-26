@@ -48,8 +48,10 @@ def prepare_batch(content: bytes, windows: Windows) -> PreparedBatch:
         raw = estimate(fitted,item) if item.can_score() else None
         value = adjustment.apply(raw) if raw is not None else None
         sensitivity = explain(fitted,item,raw).contributions if raw is not None else ()
-        interval = adjustment.interval(value) if value is not None and adjustment.native_scale else None
-        plan = draft(item,value,adjustment.radius)
+        band = replay.band(item.record.region)
+        radius = band.radius if band is not None and band.trusted else None
+        interval = adjustment.interval(value,radius) if value is not None and radius is not None else None
+        plan = draft(item,value,radius,band.reason if band is not None else '')
         items.append(Candidate(plan,value,interval,sensitivity))
     return PreparedBatch(feed,vintage,profile,fitted,replay,shift,tuple(items))
 

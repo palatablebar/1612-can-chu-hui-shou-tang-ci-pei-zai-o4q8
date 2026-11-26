@@ -23,8 +23,10 @@ def summarize(record: dict) -> dict:
     values = tuple(fields[item.key] for item in FIELDS)
     window = record['window']
     prediction = record.get('estimate')
+    interval = record.get('interval')
+    reserved = interval[1] if interval else prediction
     covers,bins,hours,events,fill,road = values
-    kilos = max(float(prediction or 0),bins*fill*.27)
+    kilos = max(float(reserved or 0),bins*fill*.27)
     full_bins = bins*fill/100
     per_stop_minutes = 2.1*road+1.9*bins
     findings = [
@@ -33,7 +35,7 @@ def summarize(record: dict) -> dict:
         reading('bin_equivalents','满载桶折算',full_bins,'桶',19,'high'),
         reading('route_duration','单点行车及装载',per_stop_minutes,'分钟',window,'high')]
     work = min(kilos,100*record['units'])
-    outcome = '点位估计已预留公斤'
+    outcome = '按可信上界预留公斤'
     exposure = max(0,kilos-100*record['units']) if hours>=24 else 0
     return {'checks':findings,'work':round(work,3),'work_label':outcome,'exposure':round(exposure,3),'status':'可核算'}
 

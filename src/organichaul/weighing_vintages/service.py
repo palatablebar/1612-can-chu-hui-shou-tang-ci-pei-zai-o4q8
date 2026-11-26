@@ -34,10 +34,11 @@ def bracket(source: Snapshot, name: str, lower: int, upper: int, known_until: in
 def split(tickets: tuple[Ticket, ...], windows: Windows) -> Vintage:
     early = snapshot(tickets, windows.train_end)
     mid = snapshot(tickets, windows.calibration_end)
+    closed = snapshot(tickets, windows.holdout_end)
     late = snapshot(tickets, windows.asof)
     train = bracket(early, '训练', 1, windows.train_end, windows.train_end)
     calibration = bracket(mid, '校准', windows.train_end, windows.calibration_end, windows.calibration_end)
-    holdout = bracket(late, '回放', windows.calibration_end, windows.holdout_end, windows.asof)
+    holdout = bracket(closed, '回放', windows.calibration_end, windows.holdout_end, windows.holdout_end)
     live = tuple(item for item in late.for_phase('live') if item.day >= windows.holdout_end)
     assert_disjoint((train.evaluated, calibration.evaluated, holdout.evaluated, live))
     return Vintage(train, calibration, holdout, live, late)

@@ -4,6 +4,7 @@ from ..settings import MODE
 from ..haul_quantile.contracts import FittedModel
 from ..haul_quantile.service import estimate, outcome_for
 from ..canteen_load.contracts import Prepared
+from .bands import resolve_bands
 from .calibration import fit_adjustment
 from .contracts import Validation, ValidationPoint
 from .metrics import classification, regression
@@ -43,4 +44,5 @@ def backcheck(model: FittedModel, calibration: tuple[Prepared, ...], holdout: tu
         cohorts[point.region].append(point)
     per_region = {region: metrics(points) for region, points in sorted(cohorts.items())}
     counts = (('calibration',len(calibration)-len(cal_points)),('holdout',len(holdout)-len(hold_points)))
-    return Validation(adjusted,metrics(hold_points),per_region,counts,tuple(hold_points))
+    bands = resolve_bands(cal_points,hold_points,adjusted.radius) if adjusted.native_scale else ()
+    return Validation(adjusted,metrics(hold_points),per_region,counts,tuple(hold_points),bands)

@@ -34,10 +34,16 @@ def drift(train: tuple[Prepared,...], incoming: tuple[Prepared,...], validation:
     flagged = sum(not item.can_score() for item in incoming)
     levels = sum(axis.psi > .58 for axis in bands)
     phase,reasons = judge(len(incoming),flagged,levels,validation.holdout_metrics['count'],validation.adjustment.samples)
+    unbanded = [row.region for row in getattr(validation,'bands',()) if not row.trusted]
+    if unbanded:
+        reasons = (*reasons,f'片区 {", ".join(unbanded)} 缺少可信误差带，点位已转人工')
+        phase = Readiness.REVIEW if phase != Readiness.BLOCK else phase
+    victims = {row.region for row in getattr(validation,'bands',()) if not row.trusted}
     cohorts: dict[str,list[Prepared]] = defaultdict(list)
     for signal in incoming:
         cohorts[signal.record.region].append(signal)
-    regions = {name: {'incoming':len(rows),'manual':sum(not item.can_score() for item in rows),
+    regions = {name: {'incoming':len(rows),
+                      'manual':sum(not item.can_score() or name in victims for item in rows),
                       'missing_items':sum(bool(item.missing) for item in rows),
                       'replay_support':validation.regions.get(name,{}).get('count',0)}
                for name,rows in sorted(cohorts.items())}

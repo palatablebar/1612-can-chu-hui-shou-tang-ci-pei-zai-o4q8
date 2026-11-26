@@ -1,4 +1,8 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .bands import ErrorBand
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,11 +47,12 @@ class Adjustment:
             previous = current
         return self.buckets[-1].fraction
 
-    def interval(self, prediction: float) -> tuple[float, float]:
-        threshold = prediction + self.radius
+    def interval(self, prediction: float, radius: float | None = None) -> tuple[float, float]:
+        reach = self.radius if radius is None else radius
+        threshold = prediction + reach
         if not self.native_scale:
             threshold = min(1., threshold)
-        return max(0., prediction - self.radius), threshold
+        return max(0., prediction - reach), threshold
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +62,13 @@ class Validation:
     regions: dict
     excluded: tuple[tuple[str, int], ...]
     points: tuple[ValidationPoint, ...]
+    bands: tuple['ErrorBand', ...] = ()
+
+    def band(self, region: str) -> 'ErrorBand | None':
+        for row in self.bands:
+            if row.region == region:
+                return row
+        return None
 
     def report(self) -> dict:
         return {'adjustment': self.adjustment.name, 'calibration_count': self.adjustment.samples,
@@ -64,4 +76,6 @@ class Validation:
                 'calibration_blocks': [{'through': b.end, 'risk': b.fraction, 'weight': b.count}
                                        for b in self.adjustment.buckets],
                 'holdout': self.holdout_metrics, 'regions': self.regions,
-                'excluded': dict(self.excluded)}
+                'excluded': dict(self.excluded),
+                'bands': [row.rows() for row in self.bands],
+                'unbanded_regions': [row.region for row in self.bands if not row.trusted]}
